@@ -99,6 +99,23 @@ function traverseWithParents(object, visitor)
     }
 }
 
+function countConditions(node){
+	count = 0;
+
+	traverseWithParents(node, function(node) 
+	{
+		if ((node.type === "LogicalExpression") && ((node.operator === "&&") || (node.operator === "||")))
+		{
+			count++;
+		}
+	})
+
+	if (count > 0){
+		count++;
+	}
+	return count;
+}
+
 function complexity(filePath)
 {
 	var buf = fs.readFileSync(filePath, "utf8");
@@ -110,6 +127,7 @@ function complexity(filePath)
 	var fileBuilder = new FileBuilder();
 	fileBuilder.FileName = filePath;
 	fileBuilder.ImportCount = 0;
+	fileBuilder.Strings = 0;
 	builders[filePath] = fileBuilder;
 
 	// Tranverse program with a function visitor.
@@ -121,12 +139,28 @@ function complexity(filePath)
 
 			builder.FunctionName = functionName(node);
 			builder.StartLine    = node.loc.start.line;
+			builder.ParameterCount = node.params.length;
 
 			builders[builder.FunctionName] = builder;
+			var count = new Array();
+
+			traverseWithParents(node, function (node){
+				if (isDecision(node) === true){
+					builder.SimpleCyclomaticComplexity ++;
+					var counterTemp = countConditions (node);
+					count.push(counterTemp);
+				}
+			});
+
+			if (count.length > 0){
+				builder.MaxConditions = Math.max.apply(Math, count);
+			}
 		}
 
+		if (node.type === 'Liberal'){
+			fileBuilder.Strings ++;
+		}
 	});
-
 }
 
 // Helper function for counting children of node.
